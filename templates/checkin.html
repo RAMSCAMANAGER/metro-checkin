@@ -1,23 +1,78 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <title>Registro - Metro</title>
+    <meta charset="UTF-8">
+    <title>Registro - Metro by T-Mobile</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background-color: #f3e6ff; }
+        body {
+            background-color: #e6ccff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+        }
+        h1 {
+            font-size: 2em;
+            margin-bottom: 30px;
+        }
+        form {
+            display: inline-block;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        input, select {
+            font-size: 1.2em;
+            margin: 15px 0;
+            padding: 10px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            background-color: #a64dff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>Registro / Check-In</h1>
-    <form method="POST">
-        <label>Nombre / Name:</label><br>
-        <input name="name" required><br><br>
-        <label>Motivo / Reason:</label><br>
-        <select name="reason">
-            <option value="Pago">Pago de bill / Bill Payment</option>
-            <option value="Compra">Compra de Teléfono / Phone Purchase</option>
-            <option value="Servicio">Otro / Other</option>
-        </select><br><br>
+    <form id="checkin-form">
+        <input type="text" id="name" placeholder="Nombre / First Name" required><br>
+        <select id="reason" required>
+            <option value="">-- Por favor elija / Please choose --</option>
+            <option value="Pago de factura">Pago de bill</option>
+            <option value="Comprar teléfono">Comprar teléfono / Phone Purchase</option>
+            <option value="Otro">Otro / Other</option>
+        </select><br>
         <button type="submit">Enviar / Submit</button>
     </form>
+
+    <script>
+    document.getElementById("checkin-form").addEventListener("submit", async function(e) {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value;
+        const reason = document.getElementById("reason").value;
+
+        const response = await fetch("/checkin", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ name, reason })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            window.location.href = "/display"; // ✅ Redirect to display page
+        } else {
+            alert("Error: " + result.error);
+        }
+    });
+    </script>
 </body>
 </html>

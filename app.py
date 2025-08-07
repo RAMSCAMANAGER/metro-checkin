@@ -1,80 +1,76 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-from tinydb import TinyDB, Query
-import datetime
+from flask import Flask, render_template, request, jsonify
+import json
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'metro_secret_key'
-db = TinyDB('db.json')
-queue = db.table('queue')
-settings = db.table('settings')
 
-PIN_CODE = "2010"
+DB_FILE = 'db.json'
 
-def generate_number(reason):
-    today = datetime.date.today().isoformat()
-    prefix = {'Pago': 'B', 'Compra': 'A', 'Servicio': 'C'}.get(reason, 'C')
-    numbers_today = [x['number'] for x in queue if x['date'] == today and x['prefix'] == prefix]
-    next_number = len(numbers_today) + 1
-    return f"{prefix}{next_number}", prefix
+def read_db():
+    try:
+        with open(DB_FILE, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"queue": []}
 
-@app.route('/checkin', methods=['GET', 'POST'])
+def write_db(data):
+    with open(DB_FILE, 'w') as f:
+        json.dump(data, f)
+
+@app.route('/')
 def checkin():
-    if request.method == 'POST':
-        name = request.form['name']
-        reason = request.form['reason']
-        number, prefix = generate_number(reason)
-        queue.insert({
-            'name': name,
-            'reason': reason,
-            'number': number,
-            'prefix': prefix,
-            'date': datetime.date.today().isoformat(),
-            'timestamp': datetime.datetime.now().isoformat()
-        })
-        session['just_checked_in'] = number
-        return redirect(url_for('display'))
     return render_template('checkin.html')
 
-@app.route('/admin', methods=['GET', 'POST'])
+@app.route('/admin')
 def admin():
-    if request.method == 'POST':
-        if session.get('authenticated'):
-            if 'reset' in request.form:
-                queue.truncate()
-                settings.truncate()
-                return redirect(url_for('admin'))
-            if 'next' in request.form:
-                today = datetime.date.today().isoformat()
-                today_queue = sorted([x for x in queue if x['date'] == today], key=lambda x: x['timestamp'])
-                if today_queue:
-                    settings.upsert({
-                        'current': today_queue[0]['name'],
-                        'current_number': today_queue[0]['number']
-                    }, Query().fragment({'current': ''}))
-                    queue.remove(Query().name == today_queue[0]['name'])
-                return redirect(url_for('admin'))
-        elif request.form.get('pin') == PIN_CODE:
-            session['authenticated'] = True
-            return redirect(url_for('admin'))
-    current = settings.get(Query().fragment({'current': ''}))
-    today = datetime.date.today().isoformat()
-    today_queue = sorted([x for x in queue if x['date'] == today], key=lambda x: x['timestamp'])
-    return render_template('admin.html', authenticated=session.get('authenticated', False),
-                           queue=today_queue,
-                           current=current.get('current') if current else None,
-                           current_number=current.get('current_number') if current else None)
+    return render_template('admin.html')
 
 @app.route('/display')
 def display():
-    current = settings.get(Query().fragment({'current': ''}))
-    today = datetime.date.today().isoformat()
-    today_queue = [x for x in queue if x['date'] == today]
-    your_number = session.pop('just_checked_in', None)
-    return render_template('display.html',
-                           current=current.get('current') if current else '',
-                           current_number=current.get('current_number') if current else 'Esperando...',
-                           people_ahead=len(today_queue),
-                           your_number=your_number)
+    db = read_db()
+    queue = db.get("queue", [])
+    current = queue[0] if queue else {"name": "Nadie / No one", "number": "--"}
+    people_ahead = max(len(queue) - 1, 0)
+    return render_template('display.html', current_number=current["number"], people_ahead=people_ahead)
+
+@app.route('/checkin', methods=['POST'])
+def check_in():
+    data = request.get_json()
+    name = data.get("name")
+    reason = data.get("reason")
+
+    if not name or not reason:
+        return jsonify({"error": "Nombre y motivo requeridos / Name and reason required"}), 400
+
+    db = read_db()
+    queue = db.get("queue", [])
+
+    prefix = {"Pago de factura": "A", "Comprar telÃ©fono": "C", "Otro": "B"}.get(reason, "B")
+
+    today = datetime.now().strftime('%Y-%m-%d')
+    today_entries = [q for q in queue if q.get("date") == today and q.get("number", "").startswith(prefix)]
+    ticket_number = f"{prefix}{len(today_entries)+1}"
+
+    queue.append({"name": name, "reason": reason, "number": ticket_number, "date": today})
+    db["queue"] = queue
+    write_db(db)
+
+    return jsonify({"success": True, "number": ticket_number})
+
+@app.route('/next', methods=['POST'])
+def next_customer():
+    db = read_db()
+    queue = db.get("queue", [])
+    if queue:
+        queue.pop(0)
+    db["queue"] = queue
+    write_db(db)
+    return jsonify({"success": True})
+
+@app.route('/reset', methods=['POST'])
+def reset_queue():
+    write_db({"queue": []})
+    return jsonify({"success": True})
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registro - Metro</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f3e6ff; }
+    </style>
+</head>
+<body>
+    <h1>Registro / Check-In</h1>
+    <form method="POST">
+        <label>Nombre / Name:</label><br>
+        <input name="name" required><br><br>
+        <label>Motivo / Reason:</label><br>
+        <select name="reason">
+            <option value="Pago">Pago de bill / Bill Payment</option>
+            <option value="Compra">Compra de Teléfono / Phone Purchase</option>
+            <option value="Servicio">Otro / Other</option>
+        </select><br><br>
+        <button type="submit">Enviar / Submit</button>
+    </form>
+</body>
+</html>

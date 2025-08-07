@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin - Metro</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f3e6ff; }
+    </style>
+</head>
+<body>
+    <h1>Panel de Admin / Admin Panel</h1>
+    {% if not authenticated %}
+    <form method="POST">
+        <label>PIN:</label><br>
+        <input type="password" name="pin" required><br><br>
+        <button type="submit">Entrar / Enter</button>
+    </form>
+    {% else %}
+        <form method="POST">
+            <button name="next" type="submit">Llamar Siguiente / Call Next</button>
+            <button name="reset" type="submit" style="background:red;color:white;">Reiniciar / Reset</button>
+        </form>
+        <h2>Ahora Atendiendo / Now Serving:</h2>
+        <h1>{{ current_number }}</h1>
+        <h3>En Espera / In Queue:</h3>
+        <ul>
+        {% for person in queue %}
+            <li>{{ person['number'] }} - {{ person['name'] }}</li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
